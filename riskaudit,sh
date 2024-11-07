@@ -1,0 +1,45 @@
+#!/bin/bash
+#This script is meant for cronjob
+#in order for the script to run it must be connected to the internet to access powershell.
+
+cd "$(dirname "$0")"  #switches to the directory riskaudit.sh is ran from
+
+#the next two lines are not needed if your server/pc is able to connect to the internet
+target_vlan="IT"
+echo "switching to correct namespace: $target_vlan"
+
+ip netns exec IT pwsh -File "/home/Riskyuseraudit/riskuser.ps1" #switches to a vlan that is able to connect to the internet and checks
+
+
+#makes new directory containing the run date to store the newly created csv
+d=$(date +%Y-%m-%d)
+
+newdir="/home/Riskyuseraudit/riskaudit_${d}"
+
+mkdir $newdir
+
+echo "$newdir created"
+
+
+#runs the riskyusers script and stores it in the newly created directory
+
+ps_script="/home/Riskyuseraudit/riskuser.ps1"
+
+
+Risky_files=$(find . -type f -name "Risky*")
+
+for file in in $Risky_files; do
+	mv "$file" "$newdir"
+done
+
+echo "SCRIPT IS DONE"
+
+zip_name="$newdir.zip"
+zip_dir="$newdir"
+zip -r "$zip_name" "$zip_dir"
+echo "zip file created"
+
+sendemail -f auditscanner@raspberrypi.com -t <email address> -u "Risky Users ${d}" -m "Scan is ready for pickup at ${newdir}" -s <smtp server>
+
+
+
